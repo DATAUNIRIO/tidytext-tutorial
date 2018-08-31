@@ -14,8 +14,8 @@ library(knitr)
 knitr::opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE, dpi = 180)
 options(width=80)
 library(ggplot2)
-library(silgelib)
-theme_set(theme_plex())
+#library(silgelib)
+#theme_set(theme_plex())
 ```
 
 ## Text classification { .cover }

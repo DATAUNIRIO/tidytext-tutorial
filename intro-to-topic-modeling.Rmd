@@ -155,6 +155,7 @@ top_terms %>%
 
 <div class="fullpage width">
 ```{r, echo=FALSE}
+#install_github('dgrtwo/drlib')
 library(drlib)
 
 top_terms %>%
@@ -227,6 +228,8 @@ topic_model <- stm(words_sparse, K = 0, init.type = "Spectral",
                    prevalence = ~s(Year),
                    data = covariates,
                    verbose = FALSE)
+
+
 ```
 
 - Use functions for `semanticCoherence()`, `checkResiduals()`, `exclusivity()`, and more!
