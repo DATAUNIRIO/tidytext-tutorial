@@ -20,7 +20,7 @@ encoding<-DomCasmurro   %>%
   mutate(text = iconv(text, from="latin1", to="UTF-8"))
 
 # tansformando em tidydata (uma observacao por linha)
-DomCasmurrotidy <- encoding %>%
+DomCasmurrotidy <- DomCasmurro %>%
   mutate(line=row_number()) %>%
   unnest_tokens(word,text)
 #  unnest_tokens(word,text,strip_punct=FALSE)
@@ -56,6 +56,31 @@ DomCasmurrotidy %>%
   coord_flip()+
   xlab("Palavra")
 
+
+# que palvras ficam juntas (correlacao de palavras)
+tidy_ngram<- DomCasmurro %>%
+    unnest_tokens(bigram,text, token= "ngrams",n=2)
+
+tidy_ngram %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(!word1 %in% stop_words$word,
+           !word2 %in% stop_words$word) %>%
+    count(word1, word2, sort = TRUE)
+
+tidy_ngram %>%
+    count(bigram, sort = TRUE)
+
+tidy_ngram %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(!word1 %in% stop_words$word,
+           !word2 %in% stop_words$word) %>%
+    count(word1, word2, sort = TRUE)
+
+## What can you do with n-grams?
+#- tf-idf of n-grams
+#- network analysis
+#- negation
+
 # Ainda nao funciona no brasil, mas eh a lista de palavras para analise de sentimentos
 # afinn, bing, nrc e loughran sao metodos de escolha de palavras
 #get_sentiments("afinn")
@@ -71,25 +96,37 @@ DomCasmurrotidy %>%
 #Memorias Posthumas de Braz Cubas = 54829
 #Quincas Borba =  55682
 #Dom Casmurro  =55752
-# José de Alencar: 5 minutos =44540
+#José de Alencar: 5 minutos =44540
+#Othello =28526
+##########################################################################
+##########################################################################
+##########################################################################
+
+# Exemplo original
+# titles <- c("The War of the Worlds",
+#             "Pride and Prejudice")
+# 
+# books <- gutenberg_works(title %in% titles) %>%
+#     gutenberg_download(meta_fields = "title") %>%
+#     mutate(document = row_number())
+# 
+# books
 
 # baixando todos os livros
-full_collection <- gutenberg_download(c(55752,54829,55682)) %>%
-                   gutenberg_download(meta_fields = "title")
+full_collection <- gutenberg_download(c(55752,28526))%>%
+    mutate(document = row_number())
 
-full_collection <- gutenberg_download(55752) %>%
-                    gutenberg_download(54829) %>%
-#                    gutenberg_download(55682) %>%
-                    gutenberg_download(meta_fields = "title")
+full_collection$title<-full_collection$gutenberg_id
+full_collection$title<-gsub(55752,"Dom Casmurro",full_collection$title)
+full_collection$title<-gsub(28526,"Othello",full_collection$title)
 
-full_collection
 
 # modificacao dos caracteres latinos
 encoding<-full_collection   %>%
   mutate(text = iconv(text, from="latin1", to="UTF-8"))
 
 # tansformando em tidydata (uma observacao por linha - uma palavra por linha)
-book_words <- encoding %>%
+book_words <- full_collection%>%
   mutate(line=row_number()) %>%
   unnest_tokens(word,text) %>%
   count(title,word,sort = TRUE)
@@ -110,48 +147,17 @@ book_words %>%
   coord_flip() +
   facet_wrap(~title, scales = "free")
 
-# que palvras ficam juntas (correlacao de palavras)
-tidy_ngram<- DomCasmurro %>%
-      unnest_tokens(bigram,text, token= "ngrams",n=2)
-  
-tidy_ngram %>%
-  separate(bigram, c("word1", "word2"), sep = " ") %>%
-  filter(!word1 %in% stop_words$word,
-         !word2 %in% stop_words$word) %>%
-  count(word1, word2, sort = TRUE)
-
-## What can you do with n-grams?
-#- tf-idf of n-grams
-#- network analysis
-#- negation
 
 #########################################################################
 #########################################################################
-# Machado de Assis: Dom Casmurro  =55752
-# José de Alencar: Cinco minutos =44540
 #########################################################################
 #########################################################################
-library(tidyverse)
-library(gutenbergr)
 
-
-titles<-c("Dom Casmurro","Cinco minutos")
-titles<-c(55752,44540)
-books <- gutenberg_works(title %in% titles) %>%
-  gutenberg_download(meta_fields = "title") %>% 
-  mutate(document = row_number())
-
-
-titles<-c("The War of the Worlds","Pride and Prejudice")
-books <- gutenberg_works(title %in% titles) %>%
-  gutenberg_download(meta_fields = "title") %>% 
-                       mutate(document = row_number())
-
-# palavras que repetiram 50 vezes pelo menos                            
-tidybooks <-books %>%
+# palavras que repetiram 100 vezes pelo menos                            
+tidybooks <-full_collection %>%
   unnest_tokens(word,text) %>%
   group_by(word) %>%
-  filter(n()>50) %>%
+  filter(n()>100) %>%
   ungroup()
 
 tidybooks
@@ -164,19 +170,17 @@ sparse_words <- tidy_books %>%
   cast_sparse(document, word, n)
 
 books_joined <- data_frame(document = as.integer(rownames(sparse_words))) %>%
-  left_join(books %>%
+  left_join(full_collection %>%
               select(document, title))
 
 ## Train a glmnet model
 library(glmnet)
-is_jane <- books_joined$title == "Pride and Prejudice"
+eh_o_Machado <- books_joined$title == "Dom Casmurro"
 
-model <- cv.glmnet(sparse_words, is_jane, family = "binomial", 
+model <- cv.glmnet(sparse_words, eh_o_Machado, family = "binomial", 
                    parallel = TRUE, keep = TRUE)
 
-
 ## Tidying our model
-
 
 library(broom)
 
@@ -218,14 +222,13 @@ coefs %>%
   geom_col(show.legend = FALSE) +
   coord_flip() +
   labs(x = NULL,
-       title = "Coefficients that increase/decrease probability of classification",
-       subtitle = "A document mentioning Martians is unlikely to be written by Jane Austen")
-
+       title = "Coeficientes que aumentam / diminuem a probabilidade de classificação",
+       subtitle = "É improvável que um documento mencionando Desdêmona seja escrito por Machado de Assis")
 
 comment_classes <- classifications %>%
-  left_join(books %>%
+  left_join(full_collection %>%
               select(title, document), by = "document") %>%
-  mutate(Correct = case_when(title == "Pride and Prejudice" ~ TRUE,
+  mutate(Correct = case_when(title == "Dom Casmurro" ~ TRUE,
                              TRUE ~ FALSE))
 
 roc <- comment_classes %>%
@@ -247,30 +250,31 @@ roc %>%
               size = 1.5) + 
   geom_line(color = "midnightblue",
             size = 1.8) +
-  labs(title = "ROC for text classification")
+  labs(title = "ROC para classificação de texto")
 
 roc %>%
   summarise(AUC = sum(diff(FPR) * na.omit(lead(TPR) + TPR)) / 2)
 
 
-
 ## Misclassifications
-# Let's talk about misclassifications. Which documents here were incorrectly predicted to be written by Jane Austen?
+# Vamos falar sobre erros de classificação. 
+# Quais documentos aqui foram incorretamente previstos para serem escritos por Machado de Assis?
+# (acho que não está funcionando)
 
 roc %>%
   filter(Probability > .8, !Correct) %>%
-  sample_n(10) %>%
-  inner_join(books %>%
-               select(document, text)) %>%
-  select(Probability, text)
+  sample_n(15) %>%
+  inner_join(full_collection %>%
+               select(document, text)) %>% 
+    select(Probability, text)
 
 ## Misclassifications
-
-#Let's talk about misclassifications. Which documents here were incorrectly predicted to *not* be written by Jane Austen?
+# Vamos falar sobre erros de classificação. 
+# Quais documentos aqui foram incorretamente previstos para *não* serem escritos por Machado de Assis?
 
 roc %>%
-filter(Probability < .2, Correct) %>%
-sample_n(10) %>%
-inner_join(books %>%
-select(document, text)) %>%
-select(Probability, text)
+    filter(Probability < .2, Correct) %>%
+    sample_n(15) %>%
+    inner_join(full_collection %>%
+               select(document, text)) %>%
+    select(Probability, text)

@@ -224,10 +224,14 @@ chapters_parsed %>%
 - Document-level covariates
 
 ```{r, eval=FALSE}
-topic_model <- stm(words_sparse, K = 0, init.type = "Spectral",
-                   prevalence = ~s(Year),
-                   data = covariates,
-                   verbose = FALSE)
+#topic_model <- stm(words_sparse, K = 0, init.type = "Spectral",
+#                   prevalence = ~s(Year),
+#                   data = covariates,
+#                   verbose = FALSE)
+
+topic_model <- stm(words_sparse, K = 4, 
+                   verbose = FALSE, init.type = "Spectral")
+summary(topic_model)
 
 
 ```

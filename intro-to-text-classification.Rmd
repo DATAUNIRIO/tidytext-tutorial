@@ -87,8 +87,8 @@ books_joined <- data_frame(document = as.integer(rownames(sparse_words))) %>%
 
 ```{r}
 library(glmnet)
-library(doMC)
-registerDoMC(cores = 8)
+#library(doMC)
+#registerDoMC(cores = 8)
 
 is_jane <- books_joined$title == "Pride and Prejudice"
 
